@@ -14,20 +14,20 @@ class BinanceAPI {
   async getExchangeInfo() {
     try {
       const response = await axios.get(`${BINANCE_API_BASE}/api/v3/exchangeInfo`);
-      
+
       // Filter for USDT pairs only
-      const usdtPairs = response.data.symbols.filter(symbol => 
-        symbol.symbol.endsWith('USDT') && 
+      const usdtPairs = response.data.symbols.filter(symbol =>
+        symbol.symbol.endsWith('USDT') &&
         symbol.status === 'TRADING'
       );
-      
+
       // Extract base assets (coins)
       const coins = usdtPairs.map(symbol => ({
         symbol: symbol.symbol,
         baseAsset: symbol.baseAsset,
         quoteAsset: symbol.quoteAsset
       }));
-      
+
       return coins;
     } catch (error) {
       console.error('Error fetching exchange info:', error.message);
@@ -66,16 +66,16 @@ class BinanceAPI {
       return klines;
     } catch (error) {
       console.error(`Error fetching klines for ${symbol}:`, error.message);
-      
+
       // Handle specific Binance API errors
       if (error.response?.status === 429) {
         throw new Error('Rate limit exceeded. Please try again later.');
       }
-      
+
       if (error.response?.data?.msg) {
         throw new Error(`Binance API error: ${error.response.data.msg}`);
       }
-      
+
       throw new Error(`Failed to fetch klines: ${error.message}`);
     }
   }
@@ -90,6 +90,26 @@ class BinanceAPI {
    */
   async getSyntheticPair(coinA, coinB, interval = '1h', limit = 500) {
     try {
+      // Special handling for USDT
+      // Case 1: CoinA = USDT (Inverse pair: 1 / CoinB)
+      if (coinA === 'USDT') {
+        const klinesB = await this.getKlines(`${coinB}USDT`, interval, limit);
+        return klinesB.map(k => ({
+          time: k.time,
+          open: 1 / k.open,
+          high: 1 / k.low,  // Inverse high is 1/low
+          low: 1 / k.high,  // Inverse low is 1/high
+          close: 1 / k.close,
+          volume: k.volume // Keep volume
+        }));
+      }
+
+      // Case 2: CoinB = USDT (Direct pair: CoinA / 1)
+      if (coinB === 'USDT') {
+        return await this.getKlines(`${coinA}USDT`, interval, limit);
+      }
+
+      // Case 3: Both are standard coins (Cross pair: CoinA / CoinB)
       // Fetch both pairs in parallel
       const [klinesA, klinesB] = await Promise.all([
         this.getKlines(`${coinA}USDT`, interval, limit),
@@ -103,7 +123,7 @@ class BinanceAPI {
       const syntheticKlines = klinesA
         .map(klineA => {
           const klineB = klinesBMap.get(klineA.time);
-          
+
           // Skip if we don't have matching timestamp in coinB
           if (!klineB) return null;
 
@@ -111,8 +131,8 @@ class BinanceAPI {
           return {
             time: klineA.time,
             open: klineA.open / klineB.open,
-            high: klineA.high / klineB.high,
-            low: klineA.low / klineB.low,
+            high: klineA.high / klineB.low, // Max possible range: HighA / LowB
+            low: klineA.low / klineB.high,  // Min possible range: LowA / HighB
             close: klineA.close / klineB.close,
             volume: klineA.volume // Keep coinA volume for reference
           };

@@ -35,7 +35,9 @@ app.get('/api/symbols', async (req, res) => {
         const symbols = await binanceAPI.getExchangeInfo();
 
         // Extract unique base assets (coins)
-        const coins = [...new Set(symbols.map(s => s.baseAsset))].sort();
+        const coins = [...new Set(symbols.map(s => s.baseAsset))];
+        coins.push('USDT');
+        coins.sort();
 
         res.json({
             success: true,
