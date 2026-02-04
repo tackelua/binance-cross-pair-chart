@@ -1,0 +1,26 @@
+{
+  "name": "binance-cross-pair-chart",
+  "version": "1.0.0",
+  "description": "Binance synthetic pair chart viewer - Calculate and display cross-pair rates",
+  "main": "src/server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server/index.js",
+    "dev": "node --watch src/server/index.js"
+  },
+  "keywords": [
+    "binance",
+    "chart",
+    "synthetic-pair",
+    "trading",
+    "cryptocurrency"
+  ],
+  "author": "Githsoft",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.5",
+    "node-cache": "^5.1.2",
+    "cors": "^2.8.5"
+  }
+}
